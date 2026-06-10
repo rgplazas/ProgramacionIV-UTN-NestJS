@@ -8,7 +8,7 @@ Unidad 4 - Desarrollo de APIs con Node.js y NestJS
 
 ## Descripcion general
 
-Este repositorio contiene el proyecto integrador de la Unidad 4, desarrollado de forma incremental a lo largo de cuatro clases. El dominio de trabajo es un sistema de gestion de inventario de productos, que evoluciona desde una API minima hasta una aplicacion lista para produccion.
+Este repositorio contiene el proyecto integrador de la Unidad 4, desarrollado de forma incremental a lo largo de cinco clases. El dominio de trabajo es un sistema de gestion de inventario de productos, que evoluciona desde una API minima hasta una aplicacion con subida de imagenes a la nube lista para produccion.
 
 Cada clase agrega una capa de complejidad sobre la anterior, de modo que el alumno puede comparar versiones y comprender con claridad que aporta cada tecnologia o patron incorporado.
 
@@ -21,7 +21,8 @@ ProgramacionIV-UTN-NestJS/
 ├── clase1-fundamentos/            # API basica, almacenamiento en memoria
 ├── clase2-mongodb/                # Persistencia con MongoDB y Mongoose
 ├── clase3-seguridad/              # Autenticacion JWT y autorizacion por roles
-└── clase4-swagger-testing-docker/ # Documentacion, testing y contenedores
+├── clase4-swagger-testing-docker/ # Documentacion, testing y contenedores
+└── clase5-cloudinary-multer/      # Subida de imagenes con Multer y Cloudinary
 ```
 
 Cada directorio es un proyecto NestJS independiente con su propio `package.json`. No existe dependencia de instalacion entre ellos.
@@ -47,6 +48,12 @@ Clase 3: + Autenticacion JWT
 Clase 4: + Swagger/OpenAPI + Jest + Docker
          Documentacion interactiva, tests unitarios y E2E,
          imagen multi-stage, Docker Compose, despliegue en la nube
+    |
+    v
+Clase 5: + Multer + Cloudinary
+         Subida de imagenes multipart/form-data, almacenamiento
+         en la nube, transformaciones automaticas, ciclo completo
+         subir / reemplazar / eliminar imagen por producto
 ```
 
 ---
@@ -58,8 +65,9 @@ Clase 4: + Swagger/OpenAPI + Jest + Docker
 | Node.js | 20 LTS o superior | Runtime de JavaScript |
 | npm | 10.x | Gestion de dependencias |
 | NestJS CLI | 11.x | Scaffolding y compilacion |
-| MongoDB | 7.x (Atlas o local) | Base de datos (clases 2, 3 y 4) |
-| Docker Desktop | 24.x | Contenedores (clase 4) |
+| MongoDB | 7.x (Atlas o local) | Base de datos (clases 2, 3, 4 y 5) |
+| Docker Desktop | 24.x | Contenedores (clases 4 y 5) |
+| Cuenta Cloudinary | gratuita | Almacenamiento de imagenes (clase 5) |
 
 Verificar instalacion:
 
@@ -203,7 +211,7 @@ Authorization: Bearer eyJhbGci...
 
 ### Proyecto 4 - Swagger + Testing + Docker (Clase 4)
 
-Proyecto final. Incluye documentacion Swagger, tests con Jest y contenedores Docker.
+Incluye documentacion Swagger, tests con Jest y contenedores Docker.
 
 **Desarrollo local:**
 
@@ -262,6 +270,52 @@ THROTTLE_LIMIT=10
 
 ---
 
+### Proyecto 5 - Multer + Cloudinary (Clase 5)
+
+Agrega la capacidad de subir, reemplazar y eliminar imagenes de productos. Las imagenes se almacenan en Cloudinary. Requiere una cuenta gratuita en https://cloudinary.com.
+
+**Configuracion previa:**
+
+1. Crear cuenta en https://cloudinary.com
+2. Ir al Dashboard y copiar: `Cloud Name`, `API Key` y `API Secret`
+3. Pegarlos en el archivo `.env`
+
+```bash
+cd clase5-cloudinary-multer
+cp .env.example .env
+# Editar .env con MONGODB_URI, JWT_SECRET y las 3 variables de Cloudinary
+npm install
+npm run start:dev
+```
+
+Swagger UI disponible en `http://localhost:3000/api/docs`.
+
+**Levantar con Docker Compose:**
+
+```bash
+docker-compose up --build
+```
+
+Variables de entorno requeridas:
+
+```bash
+# .env
+PORT=3000
+NODE_ENV=development
+MONGODB_URI=mongodb://localhost:27017/gestion-inventario-c5
+JWT_SECRET=clave-aleatoria-larga-generada-con-openssl
+JWT_EXPIRES_IN=1h
+THROTTLE_TTL=60
+THROTTLE_LIMIT=10
+
+# Cloudinary (Dashboard → Account Details)
+CLOUDINARY_CLOUD_NAME=tu_cloud_name
+CLOUDINARY_API_KEY=tu_api_key
+CLOUDINARY_API_SECRET=tu_api_secret
+```
+
+---
+
 ## Referencia de endpoints por proyecto
 
 ### Clase 1 y Clase 2 - Productos
@@ -297,6 +351,15 @@ THROTTLE_LIMIT=10
 | DELETE | /productos/:id | ADMIN |
 | GET | /auth/perfil | USER o ADMIN |
 | GET | /auth/admin | ADMIN |
+
+### Clase 5 - Imagenes con Cloudinary (incluye todos los endpoints anteriores)
+
+**Endpoints nuevos de imagen:**
+
+| Metodo | Endpoint | Rol | Descripcion |
+|---|---|---|---|
+| POST | /productos/:id/imagen | ADMIN | Subir o reemplazar imagen (multipart/form-data) |
+| DELETE | /productos/:id/imagen | ADMIN | Eliminar imagen del producto en Cloudinary |
 
 ---
 
@@ -373,6 +436,30 @@ clase4-swagger-testing-docker/
 └── docker-compose.yml # App + MongoDB
 ```
 
+### Clase 5
+
+```
+clase5-cloudinary-multer/
+├── src/
+│   ├── cloudinary/
+│   │   ├── cloudinary.config.ts   # Provider con credenciales del .env
+│   │   ├── cloudinary.service.ts  # subirImagen() y eliminarImagen()
+│   │   ├── cloudinary.module.ts
+│   │   └── multer.config.ts       # memoryStorage, fileFilter, limite 5 MB
+│   ├── productos/
+│   │   ├── schemas/
+│   │   │   └── producto.schema.ts # + campos imagenUrl e imagenPublicId
+│   │   ├── productos.controller.ts
+│   │   ├── productos.service.ts
+│   │   └── productos.module.ts
+│   ├── auth/
+│   ├── users/
+│   ├── app.module.ts
+│   └── main.ts
+├── Dockerfile
+└── docker-compose.yml # App + MongoDB + variables Cloudinary
+```
+
 ---
 
 ## Conceptos clave por clase
@@ -412,6 +499,17 @@ clase4-swagger-testing-docker/
 - **Docker multi-stage**: la imagen de produccion no contiene fuentes TypeScript ni dependencias de desarrollo.
 - **Docker Compose**: orquesta la API y MongoDB en una red interna.
 
+### Clase 5 - Subida de Imagenes
+
+- **Multer con memoryStorage**: el archivo se mantiene en RAM como `Buffer` y se envia directamente a Cloudinary sin tocar el disco del servidor.
+- **FileInterceptor**: decorador de NestJS que intercepta el archivo en el endpoint antes de llegar al handler.
+- **Validacion de archivos**: tipo MIME (jpg, png, webp) y tamano maximo (5 MB) configurados en `multerConfig`.
+- **Cloudinary SDK v2**: integracion mediante un provider de NestJS que configura las credenciales una sola vez.
+- **upload_stream**: metodo de Cloudinary que recibe un `Readable` y sube el archivo sin archivos temporales.
+- **Transformaciones en subida**: redimension automatica (800x800 limit), compresion `auto:good` y formato `auto` (WebP cuando el navegador lo soporta).
+- **Ciclo de vida de imagen**: al reemplazar una imagen se elimina la anterior de Cloudinary; al eliminar el producto tambien se elimina su imagen.
+- **imagenPublicId**: el identificador unico de Cloudinary se persiste en MongoDB para poder eliminar la imagen en operaciones futuras.
+
 ---
 
 ## Despliegue en produccion
@@ -421,10 +519,10 @@ clase4-swagger-testing-docker/
 1. Crear cuenta en https://render.com
 2. Crear un nuevo **Web Service** y conectar el repositorio de GitHub.
 3. Configurar:
-   - **Root Directory**: `clase4-swagger-testing-docker`
+   - **Root Directory**: `clase4-swagger-testing-docker` o `clase5-cloudinary-multer`
    - **Build Command**: `npm install && npm run build`
    - **Start Command**: `npm run start:prod`
-4. Agregar las variables de entorno en el panel de Render.
+4. Agregar las variables de entorno en el panel de Render (incluir las variables de Cloudinary para clase 5).
 5. Cada `git push` a la rama principal dispara un nuevo despliegue automatico.
 
 ### Railway
@@ -445,7 +543,8 @@ railway up
 - Los archivos `.env` no se suben al repositorio (estan en `.gitignore`). Siempre copiar `.env.example` a `.env` y completar los valores reales antes de ejecutar.
 - El JWT_SECRET en produccion debe ser una cadena aleatoria de al menos 32 bytes. Nunca usar el valor del archivo `.env.example`.
 - Para los tests de la Clase 4, `mongodb-memory-server` descarga automaticamente un binario de MongoDB la primera vez que se ejecutan. Esto puede tardar algunos minutos dependiendo de la conexion.
-- El `docker-compose.yml` de la Clase 4 levanta MongoDB en el puerto 27017 del host. Si ya existe una instancia local de MongoDB corriendo en ese puerto, se producira un conflicto. Detener el servicio local antes de ejecutar Docker Compose.
+- El `docker-compose.yml` de las Clases 4 y 5 levanta MongoDB en el puerto 27017 del host. Si ya existe una instancia local de MongoDB corriendo en ese puerto, se producira un conflicto. Detener el servicio local antes de ejecutar Docker Compose.
+- Para la Clase 5, las credenciales de Cloudinary (`CLOUDINARY_API_SECRET`) son privadas. Nunca deben incluirse en el repositorio ni exponerse en el frontend. Siempre cargarlas como variables de entorno.
 
 ---
 
@@ -469,6 +568,8 @@ railway up
 | Docker / Docker Compose | 24.x | Contenedores y orquestacion |
 | class-validator | 0.14.x | Validacion declarativa de DTOs |
 | class-transformer | 0.5.x | Transformacion de objetos plain a clases |
+| multer | 1.4.x | Manejo de archivos multipart/form-data |
+| cloudinary | 2.x | SDK oficial para almacenamiento de imagenes en la nube |
 
 ---
 
